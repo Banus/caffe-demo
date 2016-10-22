@@ -13,7 +13,6 @@ import time
 
 import numpy as np
 import cv2
-import skimage
 
 
 CAFFE_ROOT = ''
@@ -41,13 +40,15 @@ COLOR_GREEN = (0, 255, 0)
 
 def imagenet_labels():
     """ load ImageNet class labels """
-    label_file = CAFFE_ROOT + '/data/ilsvrc12/synset_words.txt'
+    label_file = os.path.normpath("{}/data/ilsvrc12/synset_words.txt".format(CAFFE_ROOT))
     return [' '.join(line.strip().split(',')[0].split()[1:])
             for line in open(label_file)]
 
+
 def places205_labels():
     """ load MIT Places class labels """
-    label_file = CAFFE_ROOT + '/models/PlacesCNN/googlenet_places205/categoryIndex_places205.csv'
+    label_file = os.path.normpath(
+        "{}/models/PlacesCNN/googlenet_places205/categoryIndex_places205.csv".format(CAFFE_ROOT))
     return [line.split(' ')[0][2:].replace('/', ' ').replace('_', ' ')
             for line in open(label_file)]
 
@@ -55,21 +56,23 @@ def places205_labels():
 class DeepLabeler(object):
     """ given an image it returns a list of tags with associated likelihood """
 
-    def __init__(self, model_file, weights, img_size=(256, 256), labels=None):
-        self.net = caffe.Classifier(
-            model_file, weights,
-            mean=np.load(
-                CAFFE_ROOT + '/python/caffe/imagenet/ilsvrc_2012_mean.npy').mean(1).mean(1),
-            channel_swap=(2, 1, 0),
-            image_dims=img_size,
-        )
+    def __init__(self, model_file, weights, mean_pixel=None, labels=None):
+        self.net = caffe.Net(model_file, weights, caffe.TEST)
+
+        self.transformer = caffe.io.Transformer(
+            {'data': self.net.blobs['data'].data.shape})
+        self.transformer.set_transpose('data', (2, 0, 1))
+        if mean_pixel is not None:
+            self.transformer.set_mean('data', mean_pixel)
+
         self.labels = labels
 
 
     def process(self, src):
         """ get the output for the current image """
-        image = np.copy(src[:, :, ::-1]).astype(np.float32)
-        net_output = self.net.predict([image], oversample=False)
+        input_data = np.asarray([self.transformer.preprocess('data', src)])
+        net_output = self.net.forward_all(data=input_data)['prob']
+
         if len(net_output.shape) > 2:
             net_output = np.squeeze(net_output)[np.newaxis, :]
 
@@ -168,7 +171,7 @@ def get_candidate_objects(output, img_size, classes):
     probs_filtered = probs_filtered[idx]
     classes_num_filtered = classes_num_filtered[idx]
 
-    # Non-Maxima Suppression: greedily suppress low-score overlapped boxes
+    # Non-Maxima Suppression: greedily suppress low-scoring overlapped boxes
     for i, box_filtered in enumerate(boxes_filtered):
         if probs_filtered[i] == 0:
             continue
@@ -225,7 +228,7 @@ class YoloDetector(object):
         self.transformer = caffe.io.Transformer(
             {'data': self.net.blobs['data'].data.shape})
         self.transformer.set_transpose('data', (2, 0, 1))
-        self.transformer.set_channel_swap('data', (2, 1, 0))
+        self.transformer.set_raw_scale('data', 1.0 / 255.0)
 
         self.classes = [
             "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car",
@@ -236,11 +239,10 @@ class YoloDetector(object):
 
     def process(self, src):
         """ get the output for the current image """
-        img = skimage.img_as_float(np.copy(src[:, :, ::-1])).astype(np.float32)
-        input_data = np.asarray([self.transformer.preprocess('data', img)])
+        input_data = np.asarray([self.transformer.preprocess('data', src)])
         out = self.net.forward_all(data=input_data)
 
-        return get_candidate_objects(out['result'][0], img.shape, self.classes)
+        return get_candidate_objects(out['result'][0], src.shape, self.classes)
 
 
     def draw_box_(self, img, name, box, score):
@@ -278,8 +280,8 @@ class YoloDetector(object):
         return image
 
 
-### common functionality ###
-############################
+### model selection ###
+#######################
 
 
 def load_yolo_detector(model_name):
@@ -298,6 +300,9 @@ def load_yolo_detector(model_name):
     else:
         raise ValueError("Unrecognized network: {}".format(model_name))
 
+    model_file = os.path.normpath(model_file)
+    weights = os.path.normpath(weights)
+
     return YoloDetector(model_file, weights)
 
 
@@ -307,7 +312,7 @@ def load_labeler(model_name):
 
     model_file = ""
     weights = ""
-    input_size = (256, 256)
+    mean_pixel = np.array([104, 117, 123])
     labels = imagenet_labels()
 
     if model_name == "googlenet":
@@ -326,12 +331,15 @@ def load_labeler(model_name):
         model_prefix = "{}/models/PlacesCNN/googlenet_places205".format(CAFFE_ROOT)
         model_file = "{}/deploy_places205.prototxt".format(model_prefix)
         weights = "{}/googlenet_places205_train_iter_2400000.caffemodel".format(model_prefix)
-        input_size = (224, 224)
         labels = places205_labels()
+        mean_pixel = None
     else:
         raise ValueError("Unrecognized network: {}".format(model_name))
 
-    return DeepLabeler(model_file, weights, input_size, labels)
+    model_file = os.path.normpath(model_file)
+    weights = os.path.normpath(weights)
+
+    return DeepLabeler(model_file, weights, mean_pixel, labels)
 
 
 def load_processor(model_name):
@@ -344,8 +352,8 @@ def load_processor(model_name):
 
 
 
-### Demo logic ###
-##################
+### Demo UI ###
+###############
 
 def draw_fps(image, fps):
     """ Draw the running average of the frame rate for the last predictions """
@@ -355,8 +363,8 @@ def draw_fps(image, fps):
     alpha = 0.7
 
     cv2.addWeighted(rect, alpha, roi, 1.0 - alpha, 0.0, roi)
-
-    cv2.putText(image, "FPS: %.3f" % fps, (530, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
+    cv2.putText(image, "FPS: %.3f" % fps, (530, 40),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
 
     return image
 
@@ -375,6 +383,7 @@ def main_loop(processor, source_str):
     while True:
         ret, frame = video_capture.read()
         if not ret:
+            cv2.waitKey(-1)  # show last frame
             break
 
         (width, height) = frame.shape[:2]
@@ -407,7 +416,7 @@ def main():
     options = '[{}]'.format('|'.join(models))
 
     parser.add_argument('source', type=str, default='webcam', help='video source file')
-    parser.add_argument('net', type=str, choices=models, default='caffenet',
+    parser.add_argument('net', type=str, default='caffenet',
                         help='pretrained network to use {}'.format(options))
     args = parser.parse_args()
 
