@@ -38,21 +38,6 @@ COLOR_WHITE = (255, 255, 255)
 COLOR_GREEN = (0, 255, 0)
 
 
-def imagenet_labels():
-    """ load ImageNet class labels """
-    label_file = os.path.normpath("{}/data/ilsvrc12/synset_words.txt".format(CAFFE_ROOT))
-    return [' '.join(line.strip().split(',')[0].split()[1:])
-            for line in open(label_file)]
-
-
-def places205_labels():
-    """ load MIT Places class labels """
-    label_file = os.path.normpath(
-        "{}/models/PlacesCNN/googlenet_places205/categoryIndex_places205.csv".format(CAFFE_ROOT))
-    return [line.split(' ')[0][2:].replace('/', ' ').replace('_', ' ')
-            for line in open(label_file)]
-
-
 class DeepLabeler(object):
     """ given an image it returns a list of tags with associated likelihood """
 
@@ -222,7 +207,7 @@ class YoloDetector(object):
     likelihood. Implemented using the YOLO network.
     Adapted from https://github.com/xingwangsfu/caffe-yolo """
 
-    def __init__(self, model_file, weights):
+    def __init__(self, model_file, weights, labels):
         self.net = caffe.Net(model_file, weights, caffe.TEST)
 
         self.transformer = caffe.io.Transformer(
@@ -230,10 +215,7 @@ class YoloDetector(object):
         self.transformer.set_transpose('data', (2, 0, 1))
         self.transformer.set_raw_scale('data', 1.0 / 255.0)
 
-        self.classes = [
-            "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car",
-            "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike",
-            "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
+        self.classes = labels
         self.colormap = get_colormap(len(self.classes))
 
 
@@ -284,12 +266,20 @@ class YoloDetector(object):
 #######################
 
 
+def load_labels(label_file):
+    """ load list of labels from file (one per line) """
+    labels = []
+    with open(label_file, 'r') as handle:
+        labels = [line.strip() for line in handle]
+    return labels
+
+
 def load_yolo_detector(model_name):
     """ load the model parameters for the YOLO detector """
 
     model_file = ""
     weights = ""
-    model_prefix = "../caffe-yolo/prototxt"
+    model_prefix = "models/yolo"
 
     if model_name == "yolo_tiny":
         model_file = "{}/yolo_tiny_deploy.prototxt".format(model_prefix)
@@ -302,8 +292,9 @@ def load_yolo_detector(model_name):
 
     model_file = os.path.normpath(model_file)
     weights = os.path.normpath(weights)
+    labels = load_labels(os.path.normpath("models/pascalvoc_labels.txt"))
 
-    return YoloDetector(model_file, weights)
+    return YoloDetector(model_file, weights, labels)
 
 
 def load_labeler(model_name):
@@ -313,31 +304,32 @@ def load_labeler(model_name):
     model_file = ""
     weights = ""
     mean_pixel = np.array([104, 117, 123])
-    labels = imagenet_labels()
+    label_file = "models/imagenet_labels.txt"
 
     if model_name == "googlenet":
-        model_prefix = "{}/models/bvlc_googlenet".format(CAFFE_ROOT)
+        model_prefix = "models/bvlc_googlenet"
         model_file = "{}/deploy.prototxt".format(model_prefix)
         weights = "{}/bvlc_googlenet.caffemodel".format(model_prefix)
     elif model_name == "caffenet":
-        model_prefix = "{}/models/bvlc_reference_caffenet".format(CAFFE_ROOT)
+        model_prefix = "models/bvlc_reference_caffenet"
         model_file = "{}/deploy.prototxt".format(model_prefix)
         weights = "{}/bvlc_reference_caffenet.caffemodel".format(model_prefix)
     elif model_name == "squeezenet":
-        model_prefix = "{}/models/SqueezeNet/SqueezeNet_v1.1".format(CAFFE_ROOT)
+        model_prefix = "models/SqueezeNet/SqueezeNet_v1.1"
         model_file = "{}/deploy.prototxt".format(model_prefix)
         weights = "{}/squeezenet_v1.1.caffemodel".format(model_prefix)
     elif model_name == "places_googlenet":
-        model_prefix = "{}/models/PlacesCNN/googlenet_places205".format(CAFFE_ROOT)
+        model_prefix = "models/googlenet_places205"
         model_file = "{}/deploy_places205.prototxt".format(model_prefix)
-        weights = "{}/googlenet_places205_train_iter_2400000.caffemodel".format(model_prefix)
-        labels = places205_labels()
+        weights = "{}/googlelet_places205_train_iter_2400000.caffemodel".format(model_prefix)
+        label_file = "models/places205_labels.txt"
         mean_pixel = None
     else:
         raise ValueError("Unrecognized network: {}".format(model_name))
 
     model_file = os.path.normpath(model_file)
     weights = os.path.normpath(weights)
+    labels = load_labels(os.path.normpath(label_file))
 
     return DeepLabeler(model_file, weights, mean_pixel, labels)
 

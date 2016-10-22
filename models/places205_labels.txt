@@ -1,0 +1,205 @@
+abbey
+airport terminal
+alley
+amphitheater
+amusement park
+aquarium
+aqueduct
+arch
+art gallery
+art studio
+assembly line
+attic
+auditorium
+apartment building outdoor
+badlands
+ballroom
+bamboo forest
+banquet hall
+bar
+baseball field
+basement
+basilica
+bayou
+beauty salon
+bedroom
+boardwalk
+boat deck
+bookstore
+botanical garden
+bowling alley
+boxing ring
+bridge
+building facade
+bus interior
+butchers shop
+butte
+bakery shop
+cafeteria
+campsite
+candy store
+canyon
+castle
+cemetery
+chalet
+classroom
+closet
+clothing store
+coast
+cockpit
+coffee shop
+conference center
+conference room
+construction site
+corn field
+corridor
+cottage garden
+courthouse
+courtyard
+creek
+crevasse
+crosswalk
+cathedral outdoor
+church outdoor
+dam
+dining room
+dock
+dorm room
+driveway
+desert sand
+desert vegetation
+dinette home
+doorway outdoor
+engine room
+excavation
+fairway
+fire escape
+fire station
+food court
+forest path
+forest road
+formal garden
+fountain
+field cultivated
+field wild
+galley
+game room
+garbage dump
+gas station
+gift shop
+golf course
+harbor
+herb garden
+highway
+home office
+hospital
+hospital room
+hot spring
+hotel room
+hotel outdoor
+ice cream parlor
+iceberg
+igloo
+islet
+ice skating rink outdoor
+inn outdoor
+jail cell
+kasbah
+kindergarden classroom
+kitchen
+kitchenette
+laundromat
+lighthouse
+living room
+lobby
+locker room
+mansion
+marsh
+martial arts gym
+mausoleum
+medina
+motel
+mountain
+mountain snowy
+music studio
+market outdoor
+monastery outdoor
+museum indoor
+nursery
+ocean
+office
+office building
+orchard
+pagoda
+palace
+pantry
+parking lot
+parlor
+pasture
+patio
+pavilion
+phone booth
+picnic area
+playground
+plaza
+pond
+pulpit
+racecourse
+raft
+railroad track
+rainforest
+reception
+residential neighborhood
+restaurant
+restaurant kitchen
+restaurant patio
+rice paddy
+river
+rock arch
+rope bridge
+ruin
+runway
+sandbar
+schoolhouse
+sea cliff
+shed
+shoe shop
+shopfront
+shower
+ski resort
+ski slope
+sky
+skyscraper
+slum
+snowfield
+staircase
+supermarket
+swamp
+stadium baseball
+stadium football
+stage indoor
+subway station platform
+swimming pool outdoor
+television studio
+topiary garden
+tower
+train railway
+tree farm
+trench
+temple east asia
+temple south asia
+track outdoor
+train station platform
+underwater coral reef
+valley
+vegetable garden
+veranda
+viaduct
+volcano
+waiting room
+water tower
+watering hole
+wheat field
+wind farm
+windmill
+yard
