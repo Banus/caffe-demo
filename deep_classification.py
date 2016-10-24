@@ -1,9 +1,14 @@
 #! /usr/bin/env python
-
 """
-Usage: ./deep_classification.py <source>
-"""
+Loads different types of convolutional neural networks and applies them to a
+still image, a video or the webcam.
 
+Usage:
+    python deep_classification.py <source> <model>
+
+<source> can be 'webcam', a video file or a JPEG file.
+Press ESC or 'q' to exit.
+"""
 from __future__ import print_function, division
 
 import argparse
@@ -14,6 +19,10 @@ import time
 import numpy as np
 import cv2
 
+try:
+    import ConfigParser as configparser
+except ImportError:   # Python 3
+    import configparser
 
 CAFFE_ROOT = ''
 try:
@@ -274,74 +283,38 @@ def load_labels(label_file):
     return labels
 
 
-def load_yolo_detector(model_name):
-    """ load the model parameters for the YOLO detector """
+def load_network(config_filename, model_name):
+    """ load network parameters and create processor instance """
+    base_path = os.path.dirname(config_filename)
 
-    model_file = ""
-    weights = ""
-    model_prefix = "models/yolo"
+    config = configparser.ConfigParser()
+    config.read(config_filename)
 
-    if model_name == "yolo_tiny":
-        model_file = "{}/yolo_tiny_deploy.prototxt".format(model_prefix)
-        weights = "{}/yolo_tiny.caffemodel".format(model_prefix)
-    elif model_name == "yolo":
-        model_file = "{}/yolo_deploy.prototxt".format(model_prefix)
-        weights = "{}/yolo.caffemodel".format(model_prefix)
+    if model_name not in config.sections():
+        raise ValueError(
+            "Model {0} not available in {1}".format(model_name, config_filename))
+
+    section = dict(config.items(model_name))
+    model_type = section['type']
+    model_file = os.path.join(base_path, os.path.normpath(section['model']))
+    weights = os.path.join(base_path, os.path.normpath(section['weights']))
+    label_file = os.path.join(base_path, os.path.normpath(section['labels']))
+    
+    labels = load_labels(label_file)
+    mean_pixel = (np.array([int(ch) for ch in section['mean'].split(',')])
+                  if 'mean' in section.keys() else None)
+
+    if section.get('device', "gpu") == "cpu":
+        caffe.set_mode_cpu()
     else:
-        raise ValueError("Unrecognized network: {}".format(model_name))
+        caffe.set_mode_gpu()
 
-    model_file = os.path.normpath(model_file)
-    weights = os.path.normpath(weights)
-    labels = load_labels(os.path.normpath("models/pascalvoc_labels.txt"))
-
-    return YoloDetector(model_file, weights, labels)
-
-
-def load_labeler(model_name):
-    """ load the model parameters for the labeler corresponding to the given
-    model name """
-
-    model_file = ""
-    weights = ""
-    mean_pixel = np.array([104, 117, 123])
-    label_file = "models/imagenet_labels.txt"
-
-    if model_name == "googlenet":
-        model_prefix = "models/bvlc_googlenet"
-        model_file = "{}/deploy.prototxt".format(model_prefix)
-        weights = "{}/bvlc_googlenet.caffemodel".format(model_prefix)
-    elif model_name == "caffenet":
-        model_prefix = "models/bvlc_reference_caffenet"
-        model_file = "{}/deploy.prototxt".format(model_prefix)
-        weights = "{}/bvlc_reference_caffenet.caffemodel".format(model_prefix)
-    elif model_name == "squeezenet":
-        model_prefix = "models/SqueezeNet/SqueezeNet_v1.1"
-        model_file = "{}/deploy.prototxt".format(model_prefix)
-        weights = "{}/squeezenet_v1.1.caffemodel".format(model_prefix)
-    elif model_name == "places_googlenet":
-        model_prefix = "models/googlenet_places205"
-        model_file = "{}/deploy_places205.prototxt".format(model_prefix)
-        weights = "{}/googlelet_places205_train_iter_2400000.caffemodel".format(model_prefix)
-        label_file = "models/places205_labels.txt"
-        mean_pixel = None
+    if   model_type == "detect_yolo":
+        return YoloDetector(model_file, weights, labels)
+    elif model_type == "class":
+        return DeepLabeler(model_file, weights, mean_pixel, labels)
     else:
-        raise ValueError("Unrecognized network: {}".format(model_name))
-
-    model_file = os.path.normpath(model_file)
-    weights = os.path.normpath(weights)
-    labels = load_labels(os.path.normpath(label_file))
-
-    return DeepLabeler(model_file, weights, mean_pixel, labels)
-
-
-def load_processor(model_name):
-    """ load the mdoel parameter for the given model name """
-
-    if model_name[:4] == "yolo":   # YOLO detector
-        return load_yolo_detector(model_name)
-    else:
-        return load_labeler(model_name)
-
+        raise ValueError("Unrecognized type {0} for network {1}".format(model_type, model_name))
 
 
 ### Demo UI ###
@@ -375,6 +348,8 @@ def main_loop(processor, source_str):
     while True:
         ret, frame = video_capture.read()
         if not ret:
+            if i == 0:
+                raise IOError("source {} not found".format(source_str))
             cv2.waitKey(-1)  # show last frame
             break
 
@@ -395,6 +370,11 @@ def main_loop(processor, source_str):
             break
 
 
+def get_script_path():
+    """ returns the directory of the executed script """
+    return os.path.dirname(os.path.realpath(sys.argv[0]))
+
+
 def main():
     """ entry point function """
     parser = argparse.ArgumentParser(
@@ -412,8 +392,8 @@ def main():
                         help='pretrained network to use {}'.format(options))
     args = parser.parse_args()
 
-    caffe.set_mode_cpu()
-    main_loop(load_processor(args.net), args.source)
+    configuration_file = os.path.join(get_script_path(), "networks.ini")
+    main_loop(load_network(configuration_file, args.net), args.source)
 
 
 if __name__ == '__main__':

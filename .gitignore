@@ -1,0 +1,9 @@
+# Media files
+*.mp4
+*.avi
+*.jpg
+
+# Weights and models
+*.caffemodel
+*.tar.gz
+models/SqueezeNet
