@@ -4,10 +4,14 @@ Loads different types of convolutional neural networks and applies them to a
 still image, a video or the webcam.
 
 Usage:
-    python deep_classification.py <source> <model>
+    python deep_classification.py <source> <model> --skip <n_frames>
 
 <source> can be 'webcam', a video file or a JPEG file.
-Press ESC or 'q' to exit.
+<model> is the name of the network model to be used from 'networks.ini'.
+If '--skip' is specified, the specified number of frames is skipped before
+applying the network again.
+
+Press ESC or 'q' to exit and 'p' to take a screenshot.
 """
 from __future__ import print_function, division
 
@@ -100,7 +104,7 @@ class DeepLabeler(object):
         for (i, (cls_id, value)) in enumerate(predictions):
             cv2.rectangle(image, (15, 15 + 26*i),
                           (15 + int(175*value), 35 + 26*i), COLOR_GREEN, -1)
-            cv2.putText(image, cls_id, (175, 35 + 26*i),
+            cv2.putText(image, cls_id, (190, 35 + 26*i),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, COLOR_WHITE)
 
         return image
@@ -134,7 +138,7 @@ def load_network(config_filename, model_name):
     model_file = os.path.join(base_path, os.path.normpath(section['model']))
     weights = os.path.join(base_path, os.path.normpath(section['weights']))
     label_file = os.path.join(base_path, os.path.normpath(section['labels']))
-    
+
     labels = load_labels(label_file)
     mean_pixel = (np.array([int(ch) for ch in section['mean'].split(',')])
                   if 'mean' in section.keys() else None)
@@ -169,44 +173,62 @@ def draw_fps(image, fps):
     return image
 
 
-def main_loop(processor, source_str):
-    """ applies the model to all the images from source """
+def aspect_ratio(image):
+    """ compute the aspect ratio from the image size """
+    width, height = image.shape[:2]
+    return height / width
 
-    key_esc = 27
-    eval_step = 1
+
+# Constants #
+#############
+
+KEY_ESC = 27           # key code for ESC
+MAX_IMAGE_SIDE = 640   # max height or width allowed for the image
+
+
+def main_loop(processor, source_str, frame_skip=1):
+    """ applies the model to all the images from the source """
 
     video_capture = cv2.VideoCapture(0 if source_str == 'webcam' else source_str)
 
-    i = 0
     fps = 0.0
+    delay = 30
 
+    i = 0
     while True:
-        ret, frame = video_capture.read()
-        if not ret:
-            if i == 0:
-                raise IOError("source {} not found".format(source_str))
-            cv2.waitKey(-1)  # show last frame
-            break
+        ret, image = video_capture.read()
 
-        (width, height) = frame.shape[:2]
-        frame = cv2.resize(frame, (int(640 * height / width), 640))
+        if not ret and i == 0:
+            raise IOError("source {} not found".format(source_str))
 
-        if i % eval_step == 0:
-            t_start = time.time()
-            predictions = processor.process(frame)
-            duration = time.time() - t_start
-            fps = 0.5 * fps + 0.5 / duration
+        if ret:
+            frame = cv2.resize(
+                image, (int(MAX_IMAGE_SIDE * aspect_ratio(image)), MAX_IMAGE_SIDE))
 
-        frame = processor.draw_predictions(frame, predictions)
-        cv2.imshow('Video', draw_fps(frame, fps))
-        i += 1
+            if i % frame_skip == 0:
+                t_start = time.time()
+                predictions = processor.process(frame)
+                fps = 0.5 * fps + 0.5 / (time.time() - t_start)
 
-        if  cv2.waitKey(30) & 0xFF in [ord('q'), key_esc]:
-            break
+            frame = processor.draw_predictions(frame, predictions)
+            frame = draw_fps(frame, fps)
+            i += 1
+        else:
+            delay = -1
+
+        cv2.imshow('Video', frame)
+        keypress = cv2.waitKey(delay) & 0xFF
+
+        if   keypress == ord('p'):              # screenshot
+            source_name = os.path.basename(os.path.splitext(source_str)[0])
+            cv2.imwrite("{0}.{1:03d}.png".format(source_name, i), frame)
+        elif keypress in [ord('q'), KEY_ESC]:   # exit
+            cv2.destroyAllWindows()
+            return
 
 
 def get_script_path():
-    """ returns the directory of the executed script """
+    """ returns the directory of the current script """
     return os.path.dirname(os.path.realpath(sys.argv[0]))
 
 
@@ -218,17 +240,14 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    models = ['caffenet', 'googlenet', 'squeezenet', 'places_googlenet',
-              'yolo_tiny']
-    options = '[{}]'.format('|'.join(models))
-
     parser.add_argument('source', type=str, default='webcam', help='video source file')
     parser.add_argument('net', type=str, default='caffenet',
-                        help='pretrained network to use {}'.format(options))
+                        help='pretrained network to use (from network.ini)')
+    parser.add_argument('--skip', type=int, default=1, help='skip every n frames')
     args = parser.parse_args()
 
     configuration_file = os.path.join(get_script_path(), "networks.ini")
-    main_loop(load_network(configuration_file, args.net), args.source)
+    main_loop(load_network(configuration_file, args.net), args.source, args.skip)
 
 
 if __name__ == '__main__':

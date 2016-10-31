@@ -62,7 +62,7 @@ do
             fi
         ;;
         "yolo")
-            if ! [ -f yolo/yolo_tiny.caffemodel ]; then
+            if ! [ -f yolo/yolo.caffemodel ]; then
                 echo "\nDownloading YOLO tiny..."
                 wget https://drive.google.com/file/d/0Bzy9LxvTYIgKMXdqS29HWGNLdGM/view?usp=sharing -P yolo
             fi
