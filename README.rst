@@ -96,6 +96,22 @@ parameters, e.g.
     ./download_models.sh caffenet squeezenet
 
 
+Windows
+-------
+
+You can run the demos in Windows by installing one of the
+`Caffe for Windows <https://github.com/BVLC/caffe/tree/windows>`_ pre-built
+binaries; all the dependences are already included in the distributed package.
+Set ``CAFFE_ROOT`` to point to the directory where you unpacked the Caffe
+distribution.
+
+To download the models, use the Git bash shell:
+
+.. code:: bash
+
+    cd models && sh download_models.sh all
+
+
 Configuration file
 ------------------
 

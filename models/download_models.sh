@@ -35,7 +35,7 @@ for model in $MODELS
 do
     case $model in
         "caffenet")
-           load_caffe_model "CaffeNet" "bvlc_reference_caffenet" "4c8d77deb20ea792f84eb5e6d0a11ca0a8660a46"
+            load_caffe_model "CaffeNet" "bvlc_reference_caffenet" "4c8d77deb20ea792f84eb5e6d0a11ca0a8660a46"
         ;;
         "googlenet")
             load_caffe_model "GoogleNet" "bvlc_googlenet" "405fc5acd08a3bb12de8ee5e23a96bec22f08204"
