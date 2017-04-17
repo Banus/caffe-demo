@@ -24,7 +24,7 @@ def get_boxes(output, img_size, grid_size, num_boxes):
     w_img, h_img = img_size[1], img_size[0]
     boxes = np.reshape(output, (grid_size, grid_size, num_boxes, 4))
 
-    offset = np.tile(np.arange(grid_size)[:, np.newaxis], 
+    offset = np.tile(np.arange(grid_size)[:, np.newaxis],
                      (grid_size, 1, num_boxes))
 
     boxes[:, :, :, 0] += offset
@@ -43,10 +43,14 @@ def parse_yolo_output(output, img_size, num_classes):
     """ convert the output of YOLO's last layer to boxes and confidence in each
     class """
 
-    num_boxes = 2
+    n_coord_box = 4    # coordinate per bounding box
     grid_size = 7
 
     sc_offset = grid_size * grid_size * num_classes
+
+    # autodetect num_boxes
+    num_boxes = int((output.shape[0] - sc_offset) /
+                    (grid_size*grid_size*(n_coord_box+1)))
     box_offset = sc_offset + grid_size * grid_size * num_boxes
 
     class_probs = np.reshape(output[0:sc_offset], (grid_size, grid_size, num_classes))
@@ -74,20 +78,15 @@ def get_candidate_objects(output, img_size, classes):
     filter_mat_boxes = np.nonzero(filter_mat_probs)[0:3]
     boxes_filtered = boxes[filter_mat_boxes]
     probs_filtered = probs[filter_mat_probs]
-    classes_num_filtered = np.argmax(filter_mat_probs, axis=3)[filter_mat_boxes]
+    classes_num_filtered = np.argmax(probs, axis=3)[filter_mat_boxes]
 
     idx = np.argsort(probs_filtered)[::-1]
     boxes_filtered = boxes_filtered[idx]
     probs_filtered = probs_filtered[idx]
     classes_num_filtered = classes_num_filtered[idx]
 
-    # Non-Maxima Suppression: greedily suppress low-scoring overlapped boxes
-    for i, box_filtered in enumerate(boxes_filtered):
-        if probs_filtered[i] == 0:
-            continue
-        for j in range(i+1, len(boxes_filtered)):
-            if iou(box_filtered, boxes_filtered[j]) > iou_threshold:
-                probs_filtered[j] = 0.0
+    probs_filtered = non_maxima_suppression(boxes_filtered, probs_filtered,
+                                            classes_num_filtered, iou_threshold)
 
     filter_iou = (probs_filtered > 0.0)
     boxes_filtered = boxes_filtered[filter_iou]
@@ -101,15 +100,31 @@ def get_candidate_objects(output, img_size, classes):
     return result
 
 
-def iou(box1, box2):
+def non_maxima_suppression(boxes, probs, classes_num, thr=0.2):
+    """ greedily suppress low-scoring overlapped boxes """
+    for i, box in enumerate(boxes):
+        if probs[i] == 0:
+            continue
+        for j in range(i+1, len(boxes)):
+            if classes_num[i] == classes_num[j] and iou(box, boxes[j]) > thr:
+                probs[j] = 0.0
+
+    return probs
+
+
+def iou(box1, box2, denom="min"):
     """ compute intersection over union score """
     int_tb = min(box1[0]+0.5*box1[2], box2[0]+0.5*box2[2]) - \
              max(box1[0]-0.5*box1[2], box2[0]-0.5*box2[2])
     int_lr = min(box1[1]+0.5*box1[3], box2[1]+0.5*box2[3]) - \
              max(box1[1]-0.5*box1[3], box2[1]-0.5*box2[3])
-    intersection = max(0.0, int_tb) * max(0.0, int_lr)
 
-    return intersection / (box1[2]*box1[3] + box2[2]*box2[3] - intersection)
+    intersection = max(0.0, int_tb) * max(0.0, int_lr)
+    area1, area2 = box1[2]*box1[3], box2[2]*box2[3]
+    control_area = min(area1, area2) if denom == "min"  \
+                   else area1 + area2 - intersection
+
+    return intersection / control_area
 
 
 def get_colormap(n_colors):

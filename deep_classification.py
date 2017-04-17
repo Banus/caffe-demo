@@ -62,14 +62,20 @@ COLOR_GREEN = (0, 255, 0)
 class DeepLabeler(object):
     """ given an image it returns a list of tags with associated likelihood """
 
-    def __init__(self, model_file, weights, mean_pixel=None, labels=None):
+    def __init__(self, model_file, weights, labels=None, **kwargs):
         self.net = caffe.Net(model_file, weights, caffe.TEST)
 
         self.transformer = caffe.io.Transformer(
             {'data': self.net.blobs['data'].data.shape})
         self.transformer.set_transpose('data', (2, 0, 1))
-        if mean_pixel is not None:
-            self.transformer.set_mean('data', mean_pixel)
+
+        mode = kwargs.get("mode", "caffe")
+        if mode == "yolo":
+            self.transformer.set_raw_scale('data', 1.0 / 255.0)
+        else:
+            mean_pixel = kwargs.get("mean_pixel", None)
+            if mean_pixel is not None:
+                self.transformer.set_mean('data', mean_pixel)
 
         self.labels = labels
 
@@ -77,7 +83,8 @@ class DeepLabeler(object):
     def process(self, src):
         """ get the output for the current image """
         input_data = np.asarray([self.transformer.preprocess('data', src)])
-        net_output = self.net.forward_all(data=input_data)['prob']
+        net_outputs = self.net.forward_all(data=input_data)
+        net_output = net_outputs[net_outputs.keys()[0]]   # get first out layer
 
         if len(net_output.shape) > 2:
             net_output = np.squeeze(net_output)[np.newaxis, :]
@@ -151,7 +158,9 @@ def load_network(config_filename, model_name):
     if   model_type == "detect_yolo":
         return yolo.YoloDetector(model_file, weights, labels)
     elif model_type == "class":
-        return DeepLabeler(model_file, weights, mean_pixel, labels)
+        return DeepLabeler(model_file, weights, labels, mean_pixel=mean_pixel)
+    elif model_type == "class_yolo":
+        return DeepLabeler(model_file, weights, labels, mode="yolo")
     else:
         raise ValueError("Unrecognized type {0} for network {1}".format(model_type, model_name))
 
