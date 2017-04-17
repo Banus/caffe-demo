@@ -57,14 +57,14 @@ do
         ;;
         "yolo_tiny")
             if ! [ -f yolo/yolo_tiny.caffemodel ]; then
-                echo "\nDownloading YOLO tiny..."
-                wget https://drive.google.com/file/d/0Bzy9LxvTYIgKNFEzOEdaZ3U0Nms/view?usp=sharing -P yolo
+                echo "\nCannot download directly from GDrive. Take YOLO tiny from:"
+                echo "https://drive.google.com/open?id=0Bx7QZuu7oVBbNEt5YmUzRGNXZlk"
             fi
         ;;
-        "yolo")
+        "yolo_tiny_voc")
             if ! [ -f yolo/yolo.caffemodel ]; then
-                echo "\nDownloading YOLO tiny..."
-                wget https://drive.google.com/file/d/0Bzy9LxvTYIgKMXdqS29HWGNLdGM/view?usp=sharing -P yolo
+                echo "\Cannot download directly from GDrive. Take YOLO tiny VOC from:"
+                echo "https://drive.google.com/open?id=0Bx7QZuu7oVBbSEdpaDBGMVFIVk0"
             fi
         ;;
     esac

@@ -95,6 +95,14 @@ parameters, e.g.
 
     ./download_models.sh caffenet squeezenet
 
+`YOLO <https://github.com/banus/caffe-yolo>`_ models cannot be
+automatically downloaded from Google Drive and thus they have to be downloaded
+manually in the `models/yolo` path.
+The links to the network weights in Caffe format are here:
+
++ `yolo_tiny <https://drive.google.com/open?id=0Bx7QZuu7oVBbNEt5YmUzRGNXZlk>`_ (CoCo classes)
++ `yolo_tiny_voc <https://drive.google.com/open?id=0Bx7QZuu7oVBbSEdpaDBGMVFIVk0>`_ (Pascal VOC classes)
+
 
 Windows
 -------
