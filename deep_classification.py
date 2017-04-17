@@ -149,6 +149,7 @@ def load_network(config_filename, model_name):
     labels = load_labels(label_file)
     mean_pixel = (np.array([int(ch) for ch in section['mean'].split(',')])
                   if 'mean' in section.keys() else None)
+    anchors = section.get('anchors', None)
 
     if section.get('device', "gpu") == "cpu":
         caffe.set_mode_cpu()
@@ -156,7 +157,7 @@ def load_network(config_filename, model_name):
         caffe.set_mode_gpu()
 
     if   model_type == "detect_yolo":
-        return yolo.YoloDetector(model_file, weights, labels)
+        return yolo.YoloDetector(model_file, weights, labels, anchors)
     elif model_type == "class":
         return DeepLabeler(model_file, weights, labels, mean_pixel=mean_pixel)
     elif model_type == "class_yolo":
@@ -170,13 +171,15 @@ def load_network(config_filename, model_name):
 
 def draw_fps(image, fps):
     """ Draw the running average of the frame rate for the last predictions """
+    heigth, width = image.shape[:2]
+    assert heigth >= 500 and width >= 500
 
-    roi = image[10:45, 530:730]
+    roi = image[10:45, width-210:width-10]
     rect = np.zeros((35, 200, 3), dtype=np.uint8)
     alpha = 0.7
 
     cv2.addWeighted(rect, alpha, roi, 1.0 - alpha, 0.0, roi)
-    cv2.putText(image, "FPS: %.3f" % fps, (530, 40),
+    cv2.putText(image, "FPS: %.3f" % fps, (width-210, 40),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
 
     return image

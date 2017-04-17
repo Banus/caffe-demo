@@ -39,11 +39,11 @@ def get_boxes(output, img_size, grid_size, num_boxes):
     return boxes
 
 
-def parse_yolo_output(output, img_size, num_classes):
+def parse_yolo_output_v1(output, img_size, num_classes):
     """ convert the output of YOLO's last layer to boxes and confidence in each
     class """
 
-    n_coord_box = 4    # coordinate per bounding box
+    n_coord_box = 4    # number of coordinates in each bounding box
     grid_size = 7
 
     sc_offset = grid_size * grid_size * num_classes
@@ -66,13 +66,80 @@ def parse_yolo_output(output, img_size, num_classes):
     return boxes, probs
 
 
-def get_candidate_objects(output, img_size, classes):
+def logistic(val):
+    """ compute the logistic activation """
+    return 1.0 / (1.0 + np.exp(-val))
+
+
+def softmax(val, axis=-1):
+    """ compute the softmax of the given tensor, normalizing on axis """
+    exp = np.exp(val - np.amax(val, axis=axis, keepdims=True))
+    return exp / np.sum(exp, axis=axis, keepdims=True)
+
+
+def get_boxes_v2(output, img_size, biases):
+    """ extract bounding boxes from the last layer (Darknet v2) """
+    # bias_w = [1.08, 3.42, 6.63, 9.42, 16.62]
+    # bias_h = [1.19, 4.41, 11.38, 5.11, 10.52]
+    bias_w = [0.738768, 2.42204, 4.30971, 10.246, 12.6868]
+    bias_h = [0.874946, 2.65704, 7.04493, 4.59428, 11.8741]
+    bias_w, bias_h = biases
+
+    w_img, h_img = img_size[1], img_size[0]
+    grid_w, grid_h, num_boxes = output.shape[:3]
+
+    # tweak: add a 0.5 offset to improve localization accuracy
+    offset_x = \
+        np.tile(np.arange(grid_w)[:, np.newaxis], (grid_h, 1, num_boxes)) - 0.5
+    offset_y = np.transpose(offset_x, (1, 0, 2))
+
+    boxes = output.copy()
+    boxes[:, :, :, 0] = (offset_x + logistic(boxes[:, :, :, 0])) / grid_w
+    boxes[:, :, :, 1] = (offset_y + logistic(boxes[:, :, :, 1])) / grid_h
+    boxes[:, :, :, 2] = np.exp(boxes[:, :, :, 2]) * bias_w / grid_w
+    boxes[:, :, :, 3] = np.exp(boxes[:, :, :, 3]) * bias_h / grid_h
+
+    boxes[:, :, :, [0, 2]] *= w_img
+    boxes[:, :, :, [1, 3]] *= h_img
+
+    return boxes
+
+
+def parse_yolo_output_v2(output, img_size, num_classes, anchors):
+    """ convert the output of the last convolutional layer (Darknet v2) """
+    n_coord_box = 4
+    biases = [float(x) for x in anchors.split(',')]
+    biases = [biases[::2], biases[1::2]]
+
+    # for each box: coordinates, probs scale, class probs
+    num_boxes = output.shape[0] // (n_coord_box + 1 + num_classes)
+    output = output.reshape((num_boxes, -1, output.shape[1], output.shape[2]))\
+             .transpose((2, 3, 0, 1))
+
+    probs = logistic(output[:, :, :, 4:5]) * softmax(output[:, :, :, 5:], axis=3)
+    boxes = get_boxes_v2(output[:, :, :, :4], img_size, biases)
+
+    return boxes, probs
+
+
+def parse_yolo_output(output, img_size, num_classes, anchors):
+    """ convert the output of YOLO's last layer to boxes and confidence in each
+    class """
+    if anchors is not None and len(output.shape) == 3:
+        return parse_yolo_output_v2(output, img_size, num_classes, anchors)
+    elif len(output.shape) == 1:
+        return parse_yolo_output_v1(output, img_size, num_classes)
+    else:
+        raise ValueError(" output format not recognized")
+
+
+def get_candidate_objects(output, img_size, classes, anchors=None):
     """ convert network output to bounding box predictions """
 
     threshold = 0.2
-    iou_threshold = 0.5
+    iou_threshold = 0.4
 
-    boxes, probs = parse_yolo_output(output, img_size, len(classes))
+    boxes, probs = parse_yolo_output(output, img_size, len(classes), anchors)
 
     filter_mat_probs = (probs >= threshold)
     filter_mat_boxes = np.nonzero(filter_mat_probs)[0:3]
@@ -84,6 +151,12 @@ def get_candidate_objects(output, img_size, classes):
     boxes_filtered = boxes_filtered[idx]
     probs_filtered = probs_filtered[idx]
     classes_num_filtered = classes_num_filtered[idx]
+
+    # too many detections - exit
+    if len(boxes_filtered) > 1e3:
+        print("Too many detections, maybe an error? : {}".format(
+            len(boxes_filtered)))
+        return []
 
     probs_filtered = non_maxima_suppression(boxes_filtered, probs_filtered,
                                             classes_num_filtered, iou_threshold)
@@ -145,13 +218,15 @@ class YoloDetector(object):
     likelihood. Implemented using the YOLO network.
     Adapted from https://github.com/xingwangsfu/caffe-yolo """
 
-    def __init__(self, model_file, weights, labels):
+    def __init__(self, model_file, weights, labels, anchors=None):
         self.net = caffe.Net(model_file, weights, caffe.TEST)
+        self.anchors = anchors
 
         self.transformer = caffe.io.Transformer(
             {'data': self.net.blobs['data'].data.shape})
         self.transformer.set_transpose('data', (2, 0, 1))
         self.transformer.set_raw_scale('data', 1.0 / 255.0)
+        self.transformer.set_channel_swap('data', (2, 1, 0))
 
         self.classes = labels
         self.colormap = get_colormap(len(self.classes))
@@ -162,7 +237,8 @@ class YoloDetector(object):
         input_data = np.asarray([self.transformer.preprocess('data', src)])
         out = self.net.forward_all(data=input_data)
 
-        return get_candidate_objects(out['result'][0], src.shape, self.classes)
+        return get_candidate_objects(out['result'][0], src.shape, self.classes,
+                                     self.anchors)
 
 
     def draw_box_(self, img, name, box, score):
