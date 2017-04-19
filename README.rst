@@ -108,6 +108,8 @@ The links to the network weights in Caffe format are here:
 
 + `tiny_yolo <https://drive.google.com/open?id=0Bx7QZuu7oVBbNEt5YmUzRGNXZlk>`_ (CoCo classes)
 + `tiny_yolo_voc <https://drive.google.com/open?id=0Bx7QZuu7oVBbSEdpaDBGMVFIVk0>`_ (Pascal VOC classes)
++ `darknet <https://drive.google.com/open?id=0Bx7QZuu7oVBbU19ZdU5neFl0T1k>`__ (ImageNet 1k)
++ `tiny <https://drive.google.com/open?id=0Bx7QZuu7oVBbRUxyRk9NOFRueGM>`_ (ImageNet 1k)
 
 
 Windows
