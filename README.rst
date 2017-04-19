@@ -44,11 +44,17 @@ Try classification on webcam with *GoogleNet*:
 
     python deep_classification.py webcam googlenet
 
-Try the detection interface with the *Yolo-tiny* model:
+Try the detection interface (CoCo classes) with the *Yolo-tiny* model:
 
 .. code:: bash
 
-    python deep_classification.py images/dog.jpg yolo_tiny
+    python deep_classification.py images/giraffe.jpg tiny_yolo
+
+And the detection interface with Pascal VOC classes:
+
+.. code:: bash
+
+    python deep_classification.py images/dog.jpg tiny_yolo_voc
 
 
 .. figure:: docs/dogUI.jpg
@@ -96,12 +102,12 @@ parameters, e.g.
     ./download_models.sh caffenet squeezenet
 
 `YOLO <https://github.com/banus/caffe-yolo>`_ models cannot be
-automatically downloaded from Google Drive and thus they have to be downloaded
+automatically downloaded from Google Drive and thus you have to download them
 manually in the `models/yolo` path.
 The links to the network weights in Caffe format are here:
 
-+ `yolo_tiny <https://drive.google.com/open?id=0Bx7QZuu7oVBbNEt5YmUzRGNXZlk>`_ (CoCo classes)
-+ `yolo_tiny_voc <https://drive.google.com/open?id=0Bx7QZuu7oVBbSEdpaDBGMVFIVk0>`_ (Pascal VOC classes)
++ `tiny_yolo <https://drive.google.com/open?id=0Bx7QZuu7oVBbNEt5YmUzRGNXZlk>`_ (CoCo classes)
++ `tiny_yolo_voc <https://drive.google.com/open?id=0Bx7QZuu7oVBbSEdpaDBGMVFIVk0>`_ (Pascal VOC classes)
 
 
 Windows
@@ -137,12 +143,16 @@ Each section has the form:
     model = path_to_caffe_prototxt
     weights = path_to_caffemodel
     labels = path_to_list_of_dataset_labels
+    mean = mean_pixel
+    anchors = list of floats
 
 The parameter ``type`` specifies the kind of network to load; as for
 now, the supported types are:
 
 -  ``class``: classification network with a *n*-way softmax at the last layer
    named ``prob``
+-  ``class_yolo``: classification network from *Darknet*, with different pixel
+   scaling and center crop
 -  ``yolo_detect``: YOLO detection network [2_] where the last layer
    specifies at once detected classes, regressed bounding boxes and box
    confidence
@@ -151,14 +161,18 @@ The parameters ``model`` and ``weights`` point to the *Caffe* files
 required to load the network structure (``.prototxt``) and weights
 (``.caffemodel``). All the paths are relative to the configuration file.
 
-Finally, the ``labels`` parameter points to a file with the name of the
+The ``labels`` parameter points to a file with the name of the
 recognized classes in the order expected by the model. Currently are
-available the classes for the *ImageNet*, *Places250* and *PascalVOC*
+available the classes for the *ImageNet*, *Places250*, *PascalVOC* and *MSCoCo*
 datasets.
 
-An optional ``mean`` parameter specifies the mean pixel value for the
+The optional ``mean`` parameter specifies the mean pixel value for the
 dataset as a triple of byte values in BGR format. If the mean is not
 available, the mean of the input image is used instead.
+
+The optional ``anchors`` parameter specifies the bounding box biases in Darknet
+v2 detection networks and it has to be manuall copied from the corresponding
+``.cfg`` file.
 
 **CPU mode**: an additional parameter ``device`` in the *DEFAULT*
 section specifies if the CPU or the GPU (default) should be used for the

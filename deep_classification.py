@@ -59,6 +59,20 @@ COLOR_WHITE = (255, 255, 255)
 COLOR_GREEN = (0, 255, 0)
 
 
+def crop_max(img, shape):
+    """ crop the largest dimension to avoid stretching """
+    net_h, net_w = shape
+    height, width = img.shape[:2]
+    aratio = net_w / net_h
+
+    if width > height * aratio:
+        diff = int((width - height * aratio) / 2)
+        return img[:, diff:-diff, :]
+    else:
+        diff = int((height - width / aratio) / 2)
+        return img[diff:-diff, :, :]
+
+
 class DeepLabeler(object):
     """ given an image it returns a list of tags with associated likelihood """
 
@@ -69,9 +83,10 @@ class DeepLabeler(object):
             {'data': self.net.blobs['data'].data.shape})
         self.transformer.set_transpose('data', (2, 0, 1))
 
-        mode = kwargs.get("mode", "caffe")
-        if mode == "yolo":
+        self.mode = kwargs.get("mode", "caffe")
+        if self.mode == "yolo":
             self.transformer.set_raw_scale('data', 1.0 / 255.0)
+            self.transformer.set_channel_swap('data', (2, 1, 0))
         else:
             mean_pixel = kwargs.get("mean_pixel", None)
             if mean_pixel is not None:
@@ -82,6 +97,8 @@ class DeepLabeler(object):
 
     def process(self, src):
         """ get the output for the current image """
+        if self.mode == "yolo":
+            src = crop_max(src, self.net.blobs['data'].data.shape[-2:])
         input_data = np.asarray([self.transformer.preprocess('data', src)])
         net_outputs = self.net.forward_all(data=input_data)
         net_output = net_outputs[net_outputs.keys()[0]]   # get first out layer

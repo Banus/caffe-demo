@@ -4,8 +4,7 @@
 # available.
 #
 # Usage:
-#  ./download_models.sh [all|caffenet|googlenet|googlenet_places205|squeezenet|
-#                        yolo_tiny|yolo]
+#  ./download_models.sh [all|caffenet|googlenet|googlenet_places205|squeezenet]
 #
 
 load_caffe_model () {
@@ -24,7 +23,7 @@ load_caffe_model () {
 
 
 if [ "$1" = "all" ]; then
-    MODELS="caffenet googlenet googlenet_places205 squeezenet yolo_tiny yolo"
+    MODELS="caffenet googlenet googlenet_places205 squeezenet"
 elif [ $# -eq 0 ]; then
     MODELS=""
 else
@@ -53,18 +52,6 @@ do
             if ! [ -d SqueezeNet ]; then
                 echo "\nCloning SqueezeNet repository..."
                 git clone https://github.com/DeepScale/SqueezeNet.git
-            fi
-        ;;
-        "yolo_tiny")
-            if ! [ -f yolo/yolo_tiny.caffemodel ]; then
-                echo "\nCannot download directly from GDrive. Take YOLO tiny from:"
-                echo "https://drive.google.com/open?id=0Bx7QZuu7oVBbNEt5YmUzRGNXZlk"
-            fi
-        ;;
-        "yolo_tiny_voc")
-            if ! [ -f yolo/yolo.caffemodel ]; then
-                echo "\Cannot download directly from GDrive. Take YOLO tiny VOC from:"
-                echo "https://drive.google.com/open?id=0Bx7QZuu7oVBbSEdpaDBGMVFIVk0"
             fi
         ;;
     esac

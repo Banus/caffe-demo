@@ -79,10 +79,6 @@ def softmax(val, axis=-1):
 
 def get_boxes_v2(output, img_size, biases):
     """ extract bounding boxes from the last layer (Darknet v2) """
-    # bias_w = [1.08, 3.42, 6.63, 9.42, 16.62]
-    # bias_h = [1.19, 4.41, 11.38, 5.11, 10.52]
-    bias_w = [0.738768, 2.42204, 4.30971, 10.246, 12.6868]
-    bias_h = [0.874946, 2.65704, 7.04493, 4.59428, 11.8741]
     bias_w, bias_h = biases
 
     w_img, h_img = img_size[1], img_size[0]
