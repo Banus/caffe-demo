@@ -1,6 +1,9 @@
-|Python27| |License|
+|Python27| |Python35| |License|
 
 .. |Python27| image:: https://img.shields.io/badge/python-2.7-blue.svg
+    :target: https://www.python.org/
+
+.. |Python35| image:: https://img.shields.io/badge/python-3.5-blue.svg
     :target: https://www.python.org/
 
 .. |License| image:: https://img.shields.io/badge/license-BSD2-blue.svg
@@ -71,8 +74,7 @@ To run the demos, you need to compile the toolbox
 `Caffe <https://github.com/BVLC/caffe>`_ with Python support; follow the
 instructions on the 
 `BVLC website <http://caffe.berkeleyvision.org/installation.html>`_.
-You need to use Python 2.7, because Caffe support for Python 3.x is still
-incomplete.
+You both Python 2.7 and Python 3.5 distributions are supported.
 
 You need also to install the Python interfaces for OpenCV; on Ubuntu:
 
@@ -117,7 +119,22 @@ Windows
 
 You can run the demos in Windows by installing one of the
 `Caffe for Windows <https://github.com/BVLC/caffe/tree/windows>`_ pre-built
-binaries; all the dependences are already included in the distributed package.
+binaries.
+
+To install the script dependences, such as *OpenCV*,
+[Anaconda](https://conda.io/miniconda.html) is suggested.
+If you use Python 3, Caffe currently supports only the version 3.5, so you may
+have to create a virtual environment and activate it.
+Type in the command console (**not** Powershell as it has issues with Anaconda
+environments) if you are using Python 3:
+
+.. code:: bash
+
+	conda create -n caffe python=3.5
+	activate caffe
+	conda install scikit-image
+    conda install -c conda-forge opencv protobuf
+
 Set ``CAFFE_ROOT`` to point to the directory where you unpacked the Caffe
 distribution.
 
@@ -126,6 +143,8 @@ To download the models, use the Git bash shell:
 .. code:: bash
 
     cd models && sh download_models.sh all
+
+The YOLO models will need to be downloaded manually.
 
 
 Configuration file

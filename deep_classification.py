@@ -83,8 +83,7 @@ class DeepLabeler(object):
             {'data': self.net.blobs['data'].data.shape})
         self.transformer.set_transpose('data', (2, 0, 1))
 
-        self.mode = kwargs.get("mode", "caffe")
-        if self.mode == "yolo":
+        if kwargs.get("mode", "caffe") == "yolo":
             self.transformer.set_raw_scale('data', 1.0 / 255.0)
             self.transformer.set_channel_swap('data', (2, 1, 0))
         else:
@@ -97,11 +96,10 @@ class DeepLabeler(object):
 
     def process(self, src):
         """ get the output for the current image """
-        if self.mode == "yolo":
-            src = crop_max(src, self.net.blobs['data'].data.shape[-2:])
+        src = crop_max(src, self.net.blobs['data'].data.shape[-2:])
         input_data = np.asarray([self.transformer.preprocess('data', src)])
         net_outputs = self.net.forward_all(data=input_data)
-        net_output = net_outputs[net_outputs.keys()[0]]   # get first out layer
+        net_output = net_outputs[list(net_outputs.keys())[0]]   # get first out layer
 
         if len(net_output.shape) > 2:
             net_output = np.squeeze(net_output)[np.newaxis, :]
