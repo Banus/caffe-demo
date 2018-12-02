@@ -133,7 +133,14 @@ environments) if you are using Python 3:
 	conda create -n caffe python=3.5
 	activate caffe
 	conda install scikit-image
-    conda install -c conda-forge opencv protobuf
+    conda install -c conda-forge py-opencv protobuf
+
+An Anaconda environment file is avalable in ``caffe-env.yml``.
+Create the environent with:
+
+..code:: bash
+
+    conda create -n caffe -f caffe-env.yml
 
 Set ``CAFFE_ROOT`` to point to the directory where you unpacked the Caffe
 distribution.

@@ -10,12 +10,15 @@ Moved in a separate module for licensing reasons.
 from __future__ import print_function, division
 
 import numpy as np
+import matplotlib.cm as cmx
+from matplotlib import colors
+
 import cv2
 
-import matplotlib.cm as cmx
-import matplotlib.colors as colors
-
-import caffe
+try:
+    import caffe
+except ImportError:
+    print("Not a standalone module; launch 'deep_classification.py' instead.")
 
 
 def get_boxes(output, img_size, grid_size, num_boxes):
@@ -53,8 +56,10 @@ def parse_yolo_output_v1(output, img_size, num_classes):
                     (grid_size*grid_size*(n_coord_box+1)))
     box_offset = sc_offset + grid_size * grid_size * num_boxes
 
-    class_probs = np.reshape(output[0:sc_offset], (grid_size, grid_size, num_classes))
-    confidences = np.reshape(output[sc_offset:box_offset], (grid_size, grid_size, num_boxes))
+    class_probs = np.reshape(output[0:sc_offset],
+                             (grid_size, grid_size, num_classes))
+    confidences = np.reshape(output[sc_offset:box_offset],
+                             (grid_size, grid_size, num_boxes))
 
     probs = np.zeros((grid_size, grid_size, num_boxes, num_classes))
     for i in range(num_boxes):
@@ -109,10 +114,11 @@ def parse_yolo_output_v2(output, img_size, num_classes, anchors):
 
     # for each box: coordinates, probs scale, class probs
     num_boxes = output.shape[0] // (n_coord_box + 1 + num_classes)
-    output = output.reshape((num_boxes, -1, output.shape[1], output.shape[2]))\
-             .transpose((2, 3, 0, 1))
+    output = output.reshape((num_boxes, -1, output.shape[1], output.shape[2]))
+    output = output.transpose((2, 3, 0, 1))
 
-    probs = logistic(output[:, :, :, 4:5]) * softmax(output[:, :, :, 5:], axis=3)
+    probs = logistic(output[:, :, :, 4:5]) * softmax(
+        output[:, :, :, 5:], axis=3)
     boxes = get_boxes_v2(output[:, :, :, :4], img_size, biases)
 
     return boxes, probs
@@ -123,15 +129,14 @@ def parse_yolo_output(output, img_size, num_classes, anchors):
     class """
     if anchors is not None and len(output.shape) == 3:
         return parse_yolo_output_v2(output, img_size, num_classes, anchors)
-    elif len(output.shape) == 1:
+    if len(output.shape) == 1:
         return parse_yolo_output_v1(output, img_size, num_classes)
-    else:
-        raise ValueError(" output format not recognized")
+
+    raise ValueError(" output format not recognized")
 
 
 def get_candidate_objects(output, img_size, classes, anchors=None):
     """ convert network output to bounding box predictions """
-
     threshold = 0.2
     iou_threshold = 0.4
 
@@ -154,19 +159,17 @@ def get_candidate_objects(output, img_size, classes, anchors=None):
             len(boxes_filtered)))
         return []
 
-    probs_filtered = non_maxima_suppression(boxes_filtered, probs_filtered,
-                                            classes_num_filtered, iou_threshold)
+    probs_filtered = non_maxima_suppression(
+        boxes_filtered, probs_filtered, classes_num_filtered, iou_threshold)
 
     filter_iou = (probs_filtered > 0.0)
     boxes_filtered = boxes_filtered[filter_iou]
     probs_filtered = probs_filtered[filter_iou]
     classes_num_filtered = classes_num_filtered[filter_iou]
 
-    result = [[classes[class_id], box[0], box[1], box[2], box[3], prob]
-              for class_id, box, prob in
-              zip(classes_num_filtered, boxes_filtered, probs_filtered)]
-
-    return result
+    return [[classes[class_id], box[0], box[1], box[2], box[3], prob]
+            for class_id, box, prob in
+            zip(classes_num_filtered, boxes_filtered, probs_filtered)]
 
 
 def non_maxima_suppression(boxes, probs, classes_num, thr=0.2):
@@ -184,14 +187,17 @@ def non_maxima_suppression(boxes, probs, classes_num, thr=0.2):
 def iou(box1, box2, denom="min"):
     """ compute intersection over union score """
     int_tb = min(box1[0]+0.5*box1[2], box2[0]+0.5*box2[2]) - \
-             max(box1[0]-0.5*box1[2], box2[0]-0.5*box2[2])
+        max(box1[0]-0.5*box1[2], box2[0]-0.5*box2[2])
     int_lr = min(box1[1]+0.5*box1[3], box2[1]+0.5*box2[3]) - \
-             max(box1[1]-0.5*box1[3], box2[1]-0.5*box2[3])
+        max(box1[1]-0.5*box1[3], box2[1]-0.5*box2[3])
 
     intersection = max(0.0, int_tb) * max(0.0, int_lr)
     area1, area2 = box1[2]*box1[3], box2[2]*box2[3]
-    control_area = min(area1, area2) if denom == "min"  \
-                   else area1 + area2 - intersection
+
+    if denom == "min":
+        control_area = min(area1, area2)
+    else:
+        control_area = area1 + area2 - intersection
 
     return intersection / control_area
 
@@ -202,6 +208,7 @@ def get_colormap(n_colors):
 
     color_norm = colors.Normalize(vmin=0, vmax=n_colors-1)
     scalar_map = cmx.ScalarMappable(norm=color_norm, cmap='hsv')
+
     def map_index_to_rgb(index):
         """ closure mapping index to color - range [0 255] for OpenCV """
         return 255.0 * np.array(scalar_map.to_rgba(index))
@@ -227,7 +234,6 @@ class YoloDetector(object):
         self.classes = labels
         self.colormap = get_colormap(len(self.classes))
 
-
     def process(self, src):
         """ get the output for the current image """
         input_data = np.asarray([self.transformer.preprocess('data', src)])
@@ -235,7 +241,6 @@ class YoloDetector(object):
 
         return get_candidate_objects(out['result'][0], src.shape, self.classes,
                                      self.anchors)
-
 
     def draw_box_(self, img, name, box, score):
         """ draw a single bounding box on the image """
@@ -252,7 +257,6 @@ class YoloDetector(object):
         cv2.putText(img, box_tag, (xmin+text_x, ymin-text_y),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
-
     def draw_predictions(self, image, predictions):
         """ draw bounding boxes in the form (class, box, score) """
         img_width, img_height = image.shape[1], image.shape[0]
@@ -262,10 +266,12 @@ class YoloDetector(object):
             class_id = result[0]
             box_x, box_y, box_w, box_h = [int(v) for v in result[1:5]]
 
-            print(" class : {}, [x,y,w,h]=[{:d},{:d},{:d},{:d}], Confidence = {}".\
-                  format(class_id, box_x, box_y, box_w, box_h, str(result[5])))
+            print(" class : {}, [x,y,w,h]=[{:d},{:d},{:d},{:d}], "
+                  "Confidence = {}".format(
+                      class_id, box_x, box_y, box_w, box_h, str(result[5])))
             box = (max(box_x-box_w//2, 0), max(box_y-box_h//2, 0),
-                   min(box_x+box_w//2, img_width), min(box_y+box_h//2, img_height))
+                   min(box_x+box_w//2, img_width),
+                   min(box_y+box_h//2, img_height))
 
             self.draw_box_(image, class_id, box, result[5])
 

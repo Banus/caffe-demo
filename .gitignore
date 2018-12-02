@@ -11,3 +11,6 @@ models/SqueezeNet
 # Python files and directories
 *.pyc
 __pycache__
+
+# projects
+.vscode

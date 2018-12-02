@@ -28,20 +28,23 @@ except ImportError:   # Python 3
 import numpy as np
 import cv2
 
-CAFFE_ROOT = ''
 try:
-    CAFFE_ROOT = os.environ['CAFFE_ROOT']
+    import caffe
 except ImportError:
-    print("CAFFE_ROOT env not found. Using default path './caffe'.")
+    # if Caffe is not in PYTHONPATH, search it in CAFFE_ROOT
+    CAFFE_ROOT = os.environ.get('CAFFE_ROOT', '')
 
-if not os.path.isdir(CAFFE_ROOT):
-    print("Directory: {0} not found, unable to use Caffe. Exiting...".
-          format(CAFFE_ROOT))
-    exit()
+    if not CAFFE_ROOT:
+        print("CAFFE_ROOT env not found. Using default path './caffe'.")
+        exit()
+    if not os.path.isdir(CAFFE_ROOT):
+        print("Directory: {0} not found, unable to use Caffe. Exiting...".
+              format(CAFFE_ROOT))
+        exit()
 
-sys.path.insert(0, CAFFE_ROOT + '/python')
+    sys.path.insert(0, CAFFE_ROOT + '/python')
 
-import caffe
+    import caffe
 
 # check if the detection module is available
 # Hack: put it always after sys.path to check for Caffe location only once
@@ -51,9 +54,9 @@ try:
 except ImportError:
     USE_YOLO = False
 
-
-### Classification ###
-######################
+#
+# Classification
+#
 
 COLOR_WHITE = (255, 255, 255)
 COLOR_GREEN = (0, 255, 0)
@@ -68,9 +71,9 @@ def crop_max(img, shape):
     if width > height * aratio:
         diff = int((width - height * aratio) / 2)
         return img[:, diff:-diff, :]
-    else:
-        diff = int((height - width / aratio) / 2)
-        return img[diff:-diff, :, :]
+
+    diff = int((height - width / aratio) / 2)
+    return img[diff:-diff, :, :]
 
 
 class DeepLabeler(object):
@@ -93,13 +96,13 @@ class DeepLabeler(object):
 
         self.labels = labels
 
-
     def process(self, src):
         """ get the output for the current image """
         src = crop_max(src, self.net.blobs['data'].data.shape[-2:])
         input_data = np.asarray([self.transformer.preprocess('data', src)])
         net_outputs = self.net.forward_all(data=input_data)
-        net_output = net_outputs[list(net_outputs.keys())[0]]   # get first out layer
+        # get the first output layer
+        net_output = net_outputs[list(net_outputs.keys())[0]]
 
         if len(net_output.shape) > 2:
             net_output = np.squeeze(net_output)[np.newaxis, :]
@@ -111,7 +114,6 @@ class DeepLabeler(object):
         print('predicted classes:', predictions)
 
         return predictions
-
 
     @staticmethod
     def draw_predictions(image, predictions):
@@ -132,9 +134,9 @@ class DeepLabeler(object):
         return image
 
 
-### model selection ###
-#######################
-
+#
+# model selection
+#
 
 def load_labels(label_file):
     """ load list of labels from file (one per line) """
@@ -152,8 +154,8 @@ def load_network(config_filename, model_name):
     config.read(config_filename)
 
     if model_name not in config.sections():
-        raise ValueError(
-            "Model {0} not available in {1}".format(model_name, config_filename))
+        raise ValueError("Model {0} not available in {1}".format(
+            model_name, config_filename))
 
     section = dict(config.items(model_name))
     model_type = section['type']
@@ -171,18 +173,20 @@ def load_network(config_filename, model_name):
     else:
         caffe.set_mode_gpu()
 
-    if   model_type == "detect_yolo":
+    if model_type == "detect_yolo":
         return yolo.YoloDetector(model_file, weights, labels, anchors)
-    elif model_type == "class":
+    if model_type == "class":
         return DeepLabeler(model_file, weights, labels, mean_pixel=mean_pixel)
-    elif model_type == "class_yolo":
+    if model_type == "class_yolo":
         return DeepLabeler(model_file, weights, labels, mode="yolo")
-    else:
-        raise ValueError("Unrecognized type {0} for network {1}".format(model_type, model_name))
+
+    raise ValueError("Unrecognized type {0} for network {1}".format(
+        model_type, model_name))
 
 
-### Demo UI ###
-###############
+#
+# Demo UI
+#
 
 def draw_fps(image, fps):
     """ Draw the running average of the frame rate for the last predictions """
@@ -216,7 +220,8 @@ MAX_IMAGE_SIDE = 640   # max height or width allowed for the image
 def main_loop(processor, source_str, frame_skip=1):
     """ applies the model to all the images from the source """
 
-    video_capture = cv2.VideoCapture(0 if source_str == 'webcam' else source_str)
+    video_capture = cv2.VideoCapture(
+        0 if source_str == 'webcam' else source_str)
 
     fps = 0.0
     delay = 30
@@ -229,8 +234,8 @@ def main_loop(processor, source_str, frame_skip=1):
             raise IOError("source {} not found".format(source_str))
 
         if ret:
-            frame = cv2.resize(
-                image, (int(MAX_IMAGE_SIDE * aspect_ratio(image)), MAX_IMAGE_SIDE))
+            height = int(MAX_IMAGE_SIDE * aspect_ratio(image))
+            frame = cv2.resize(image, (height, MAX_IMAGE_SIDE))
 
             if i % frame_skip == 0:
                 t_start = time.time()
@@ -246,7 +251,7 @@ def main_loop(processor, source_str, frame_skip=1):
         cv2.imshow('Video', frame)
         keypress = cv2.waitKey(delay) & 0xFF
 
-        if   keypress == ord('p'):              # screenshot
+        if keypress == ord('p'):              # screenshot
             source_name = os.path.basename(os.path.splitext(source_str)[0])
             cv2.imwrite("{0}.{1:03d}.png".format(source_name, i), frame)
         elif keypress in [ord('q'), KEY_ESC]:   # exit
@@ -267,14 +272,17 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    parser.add_argument('source', type=str, default='webcam', help='video source file')
+    parser.add_argument('source', type=str, default='webcam',
+                        help='video source file')
     parser.add_argument('net', type=str, default='caffenet',
                         help='pretrained network to use (from network.ini)')
-    parser.add_argument('--skip', type=int, default=1, help='skip every n frames')
+    parser.add_argument('--skip', type=int, default=1,
+                        help='skip every n frames')
     args = parser.parse_args()
 
     configuration_file = os.path.join(get_script_path(), "networks.ini")
-    main_loop(load_network(configuration_file, args.net), args.source, args.skip)
+    main_loop(load_network(configuration_file, args.net),
+              args.source, args.skip)
 
 
 if __name__ == '__main__':

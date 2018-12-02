@@ -1,0 +1,5 @@
+[MASTER]
+extension-pkg-whitelist=cv2
+
+[MESSAGES CONTROL]
+disable=useless-object-inheritance
