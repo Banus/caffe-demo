@@ -108,10 +108,10 @@ automatically downloaded from Google Drive and thus you have to download them
 manually in the `models/yolo` path.
 The links to the network weights in Caffe format are here:
 
-+ `tiny_yolo <https://drive.google.com/open?id=0Bx7QZuu7oVBbNEt5YmUzRGNXZlk>`_ (CoCo classes)
-+ `tiny_yolo_voc <https://drive.google.com/open?id=0Bx7QZuu7oVBbSEdpaDBGMVFIVk0>`_ (Pascal VOC classes)
-+ `darknet <https://drive.google.com/open?id=0Bx7QZuu7oVBbU19ZdU5neFl0T1k>`__ (ImageNet 1k)
-+ `tiny <https://drive.google.com/open?id=0Bx7QZuu7oVBbRUxyRk9NOFRueGM>`_ (ImageNet 1k)
++ `tiny_yolo <https://1drv.ms/u/s!AiHEfN981l0Vg6ZMXXz4vwzRq3YvDw?e=gJ5khE>`_ (CoCo classes)
++ `tiny_yolo_voc <https://1drv.ms/u/s!AiHEfN981l0Vg6ZLpGjx1vZwV7WT6A?e=Yf9aGZ>`_ (Pascal VOC classes)
++ `darknet <https://1drv.ms/u/s!AiHEfN981l0Vg6ZKhCFeQfdXW27oAw?e=GlScHA>`__ (ImageNet 1k)
++ `tiny <https://1drv.ms/u/s!AiHEfN981l0Vg6ZJUgW-f8J2bgefvw?e=BdW0xk>`_ (ImageNet 1k)
 
 
 Windows
@@ -122,23 +122,23 @@ You can run the demos in Windows by installing one of the
 binaries.
 
 To install the script dependences, such as *OpenCV*,
-[Anaconda](https://conda.io/miniconda.html) is suggested.
+`Anaconda <https://conda.io/miniconda.html>`_ is suggested.
 If you use Python 3, Caffe currently supports only the version 3.5, so you may
 have to create a virtual environment and activate it.
-Type in the command console (**not** Powershell as it has issues with Anaconda
+Type in the command or in the Anaconda console (**not** Powershell as it has issues with Anaconda
 environments) if you are using Python 3:
 
 .. code:: bash
 
-	conda create -n caffe python=3.5
-	activate caffe
-	conda install scikit-image
+    conda create -n caffe python=3.5
+    activate caffe
+    conda install scikit-image
     conda install -c conda-forge py-opencv protobuf
 
 An Anaconda environment file is avalable in ``caffe-env.yml``.
 Create the environent with:
 
-..code:: bash
+.. code:: bash
 
     conda create -n caffe -f caffe-env.yml
 
@@ -230,4 +230,4 @@ License
 The code is released under the BDS 2-clause license, except for the
 *yolo\_detector* module which under the 
 `Darknet license <https://github.com/pjreddie/darknet/blob/master/LICENSE>`_ 
-(free for non-commercial use).
+(public domain).
